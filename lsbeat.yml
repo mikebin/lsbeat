@@ -4,7 +4,8 @@
 
 lsbeat:
   # Defines how often an event is sent to the output
-  period: 1s
+  period: 10s
+  path: "/Users/mikebin/code/go"
 
 #================================ General =====================================
 
@@ -29,7 +30,7 @@ lsbeat:
 #-------------------------- Elasticsearch output ------------------------------
 output.elasticsearch:
   # Array of hosts to connect to.
-  hosts: ["localhost:9200"]
+  hosts: ["192.168.99.101:9200"]
 
   # Optional protocol and basic auth credentials.
   #protocol: "https"

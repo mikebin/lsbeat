@@ -10,12 +10,15 @@ import (
 	"github.com/elastic/beats/libbeat/publisher"
 
 	"github.com/mikebin/lsbeat/config"
+	"io/ioutil"
+	"path/filepath"
 )
 
 type Lsbeat struct {
 	done   chan struct{}
 	config config.Config
 	client publisher.Client
+	lastIndexTime time.Time
 }
 
 // Creates beater
@@ -45,12 +48,9 @@ func (bt *Lsbeat) Run(b *beat.Beat) error {
 		case <-ticker.C:
 		}
 
-		event := common.MapStr{
-			"@timestamp": common.Time(time.Now()),
-			"type":       b.Name,
-			"counter":    counter,
-		}
-		bt.client.PublishEvent(event)
+		now := time.Now()
+		bt.listDir(bt.config.Path, b.Name) // call listDir
+		bt.lastIndexTime = now             // mark Timestamp
 		logp.Info("Event sent")
 		counter++
 	}
@@ -59,4 +59,27 @@ func (bt *Lsbeat) Run(b *beat.Beat) error {
 func (bt *Lsbeat) Stop() {
 	bt.client.Close()
 	close(bt.done)
+}
+
+func (bt *Lsbeat) listDir(dirFile string, beatname string) {
+	files, _ := ioutil.ReadDir(dirFile)
+	for _, f := range files {
+		t := f.ModTime()
+		path := filepath.Join(dirFile, f.Name())
+		if t.After(bt.lastIndexTime) {
+			event := common.MapStr{
+				"@timestamp": common.Time(time.Now()),
+				"type":       beatname,
+				"modtime":    common.Time(t),
+				"filename":   f.Name(),
+				"path":       path,
+				"directory":  f.IsDir(),
+				"filesize":   f.Size(),
+			}
+			bt.client.PublishEvent(event)
+		}
+		if f.IsDir() {
+			bt.listDir(path, beatname)
+		}
+	}
 }
